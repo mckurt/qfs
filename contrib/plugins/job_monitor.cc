@@ -144,26 +144,37 @@ extern "C" void reportStatus(
     // tasktracker_ip=10.6.63.4
     // tasktracker_port=21334
 
-    string logFilePath = getLogPath();
+    char* bmrLogDir = getenv("BMR_ATTEMPT_LOG_DIR");
+    if (!bmrLogDir) {
+        // can't find the environment variable
+        return;
+    }
+
+    string logFilePath = bmrLogDir;
     logFilePath += "/";
     logFilePath += metaserverHost;
-    logFilePath += "_";
-    AppendDecIntToString(logFilePath, metaserverPort);
-    logFilePath += ".log.tmp";
+    logFilePath += ".log";
 
-    // open file
-    char* bmrLogDir = getenv("BMR_ATTEMPT_LOG_DIR");
-    if (bmrLogDir) {
-      std::cout << "BMR_ATTEMPT_LOG_DIR: " << bmrLogDir << std::endl;
-    }
-    else {
-      std::cout << "BMR_ATTEMPT_LOG_DIR not set!" << std::endl;
-    }
     // report Read.ReadBytes, Write.WriteBytes, Read.ReadRecoveries
+    ofstream fileStream(logFilePath.c_str(), std::ios::out | std::ios::app);
+    if (fileStream.fail()) {
+       string errMsg = "Monitor plugin can't open the log file " +
+               logFilePath + " for writing: ";
+       perror(errMsg.c_str());
+       return;
+    }
     std::cout << "Epoch: " << time(0) << std::endl;
     std::cout << "ReadBytes: " << clientCounters["Read.ReadBytes"] << std::endl;
     std::cout << "WriteBytes: " << clientCounters["Write.WriteBytes"] << std::endl;
     std::cout << "ReadRecoveries: " << clientCounters["Read.ReadRecoveries"] << std::endl;
+
+    fileStream << time(0) << ",";
+    fileStream << clientCounters["Read.ReadBytes"] << ",";
+    fileStream << clientCounters["Write.WriteBytes"] << ",";
+    fileStream << clientCounters["Read.ReadRecoveries"];
+    fileStream << endl;
+
+    fileStream.close();
 
     /*
     int pid = getpid();
